@@ -1,0 +1,165 @@
+from OpenGL.GL import *
+from OpenGL.GLUT import *
+import sys
+
+
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 600
+RADIUS = 10
+GROWTH_RATE = 0.01  # Initial growth rate
+
+
+class Circle:
+    def __init__(self, x, y, radius):
+        self.x = x
+        self.y = y
+        self.radius = radius
+
+
+circles = []
+paused = False
+
+
+def draw_circle(x, y, radius):
+    glPointSize(5.0)
+    glBegin(GL_POINTS)
+    x_c, y_c = 0, radius
+    p = 1 - radius  # Initial decision parameter
+
+
+    # Plot the initial point in each octant
+    plot_circle_points(x, y, x_c, y_c)
+
+
+    while x_c < y_c:
+        x_c += 1
+        if p < 0:
+            p = p + 2 * x_c + 1
+        else:
+            y_c -= 1
+            p = p + 2 * (x_c - y_c) + 1
+
+
+        plot_circle_points(x, y, x_c, y_c)
+
+
+    glEnd()
+
+
+def plot_circle_points(x, y, x_c, y_c):
+    glVertex2i(int(x + x_c), int(y + y_c))
+    glVertex2i(int(x - x_c), int(y + y_c))
+    glVertex2i(int(x + x_c), int(y - y_c))
+    glVertex2i(int(x - x_c), int(y - y_c))
+    glVertex2i(int(x + y_c), int(y + x_c))
+    glVertex2i(int(x - y_c), int(y + x_c))
+    glVertex2i(int(x + y_c), int(y - x_c))
+    glVertex2i(int(x - y_c), int(y - x_c))
+
+
+def erase_circle(circle):
+    glColor3f(0.0, 0.0, 0.0)  # Set color to black for erasing
+    draw_circle(circle.x, circle.y, circle.radius)
+    glColor3f(1.0, 1.0, 1.0)  # Reset color to white
+
+
+def grow_circle(circle):
+    circle.radius += GROWTH_RATE
+
+
+def draw_circles():
+    for circle in circles:
+        draw_circle(circle.x, circle.y, circle.radius)
+
+
+def update_circles():
+    for circle in circles:
+        circle.radius += GROWTH_RATE
+
+
+def display():
+    glClear(GL_COLOR_BUFFER_BIT)
+
+
+    # Draw the circles
+    for circle in circles.copy():
+        if (
+            circle.radius + circle.x > WINDOW_WIDTH
+            or circle.x - circle.radius < 0
+            or circle.radius + circle.y > WINDOW_HEIGHT
+            or circle.y - circle.radius < 0
+        ):
+            erase_circle(circle)
+            circles.remove(circle)
+        else:
+            draw_circle(circle.x, circle.y, circle.radius)
+            grow_circle(circle)
+
+
+    glutSwapBuffers()
+
+
+def reshape(width, height):
+    glViewport(0, 0, width, height)
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    glOrtho(0, WINDOW_WIDTH, 0, WINDOW_HEIGHT, -1, 1)
+    glMatrixMode(GL_MODELVIEW)
+
+
+def idle():
+    if not paused:
+        update_circles()
+        glutPostRedisplay()
+
+
+def mouse_click(button, state, x, y):
+    global paused
+    if button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
+        new_circle = Circle(x, WINDOW_HEIGHT - y, RADIUS)
+        circles.append(new_circle)
+
+
+def keyboard(key, x, y):
+    global paused
+    if key == b' ':
+        paused = not paused
+    elif key == b'\x1b':  # ASCII value for escape key
+        sys.exit()
+
+
+def special(key, x, y):
+    global GROWTH_RATE
+    if key == GLUT_KEY_LEFT:
+        GROWTH_RATE += 0.001
+    elif key == GLUT_KEY_RIGHT:
+        GROWTH_RATE = max(0.001, GROWTH_RATE - 0.001)
+
+
+def main():
+    glutInit(sys.argv)
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB)
+    glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT)
+    glutCreateWindow(b"Water Body")
+
+
+    glClearColor(0.0, 0.0, 0.0, 0.0)
+    glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
+    glOrtho(0, WINDOW_WIDTH, 0, WINDOW_HEIGHT, -1, 1)
+    glMatrixMode(GL_MODELVIEW)
+
+
+    glutDisplayFunc(display)
+    glutReshapeFunc(reshape)
+    glutMouseFunc(mouse_click)
+    glutKeyboardFunc(keyboard)
+    glutSpecialFunc(special)
+    glutIdleFunc(idle)
+
+
+    glutMainLoop()
+
+
+if __name__ == "__main__":
+    main()
